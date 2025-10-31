@@ -38,7 +38,9 @@ NOTE: This is not recommended way, because you will need to upgrade component ma
 
 1. Restart Home Assistant Core.
 
-## Minimal working config example
+## Example configurations
+
+### Minimal working config example
 ```yaml
 climate:
   - platform: smart_thermostat    
@@ -54,6 +56,31 @@ climate:
         switch_entity_id: input_boolean.kitchen_custom_ajustable_heater_regulator_switch
         pid_params: 1.3, 0.5, 0.2
     cooler: switch.kitchen_on_off_cooler
+```
+
+### Example with preset modes
+```yaml
+climate:
+  - platform: smart_thermostat    
+    name: bedroom_thermostat
+    target_sensor: sensor.bedroom_temperature
+    min_temp: 15
+    max_temp: 28
+    precision: 0.1
+    # Configure preset mode temperatures using the new format
+    presets:
+      away: 17    # Away mode temperature
+      eco: 18     # Eco mode temperature
+      comfort: 22 # Comfort mode temperature
+      home: 21    # Home mode temperature
+      sleep: 19   # Sleep mode temperature
+      boost: 23   # Boost mode temperature
+    # Or using the legacy format (away_temp is deprecated, will be removed in future versions)
+    away_temp: 17
+    heater:
+      - entity_id: climate.bedroom_thermostat_heating_floor
+        pid_params: 1.3, 0.5, 0.2
+    cooler: switch.bedroom_on_off_cooler
 ```
 
 ## Glossary
@@ -74,7 +101,16 @@ climate:
 * `sensor_stale_duration` _(Optional)_ - Thermostat will stop all controllers if no data received from sensor during this period.
 * `min_temp` _(Optional, default=7)_ - Set minimum set point available.
 * `max_temp` _(Optional, default=35)_ - Set maximum set point available.
-* `away_temp` _(Optional)_ - Temperature used by the `away` mode. If this is not specified, the preset mode feature will not be available.
+* `presets` _(Optional)_ - A dictionary of preset modes and their temperatures. Available presets (only the desired ones can be used, not all of them):
+  * `away` - Temperature for away mode
+  * `eco` - Temperature for eco mode
+  * `comfort` - Temperature for comfort mode
+  * `home` - Temperature for home mode
+  * `sleep` - Temperature for sleep mode
+  * `boost` - Temperature for boost mode
+* `away_temp` _(Optional, Deprecated)_ - Temperature used by the `away` mode. Will be removed in future versions, use `presets` instead.
+
+If no preset temperatures are specified (either through `presets` or individual temperature settings), the preset mode feature will not be available.
 * `target_temp` _(Optional)_ - Initial target temperature.
 * `heat_cool_disabled` _(Optional, default=false)_ - Disable `heat_cool` mode.
 * `heat_cool_cold_tolerance` _(Optional, default=0.3)_ - Cold tolerance for turning on heater controllers. Used only in `heat_cool` mode.
@@ -121,7 +157,7 @@ _NOTE: available if at least one `CONFIG.heater` and at least one `CONFIG.cooler
   * All **cooler** controllers will be turned off.
   * Specific behavior of each heater/cooler will depend on the controller type.
 
-_NOTE: turning on controller **DOES NOT MEANS** turning on `CONFIG.CONTROLLER.enitity_id` inside controller. 
+_NOTE: turning on controller **DOES NOT MEAN** turning on `CONFIG.CONTROLLER.enitity_id` inside controller. 
 Controller behavior depends on the **specific controller logic** and described below for each controller._
 
 

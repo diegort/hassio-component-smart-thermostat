@@ -18,6 +18,11 @@ from homeassistant.components.climate.const import (
     HVACMode,
     PRESET_AWAY,
     PRESET_NONE,
+    PRESET_ECO,
+    PRESET_COMFORT,
+    PRESET_HOME,
+    PRESET_SLEEP,
+    PRESET_BOOST,
     ClimateEntityFeature,
 )
 from homeassistant.components.input_boolean import DOMAIN as INPUT_BOOLEAN_DOMAIN
@@ -75,7 +80,9 @@ CONF_HEAT_COOL_COLD_TOLERANCE = "heat_cool_cold_tolerance"
 CONF_HEAT_COOL_HOT_TOLERANCE = "heat_cool_hot_tolerance"
 CONF_KEEP_ALIVE = "keep_alive"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
-CONF_AWAY_TEMP = "away_temp"
+CONF_PRESETS = "presets"
+# Deprecated configuration options, will be removed in future versions
+CONF_AWAY_TEMP = "away_temp"  # deprecated, use presets instead
 CONF_HEAT_COOL_DISABLED = "heat_cool_disabled"
 CONF_PRECISION = "precision"
 CONF_PID_PARAMS = "pid_params"
@@ -195,6 +202,15 @@ DATA_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
         vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_PRESETS): [vol.Schema({
+            vol.Optional(PRESET_AWAY): vol.Coerce(float),
+            vol.Optional(PRESET_ECO): vol.Coerce(float),
+            vol.Optional(PRESET_COMFORT): vol.Coerce(float),
+            vol.Optional(PRESET_HOME): vol.Coerce(float),
+            vol.Optional(PRESET_SLEEP): vol.Coerce(float),
+            vol.Optional(PRESET_BOOST): vol.Coerce(float),
+        })],
+        # Deprecated options
         vol.Optional(CONF_AWAY_TEMP): vol.Coerce(float),
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
         vol.Optional(CONF_HEAT_COOL_DISABLED): vol.Coerce(bool),
@@ -349,10 +365,43 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     heat_cool_cold_tolerance = config.get(CONF_HEAT_COOL_COLD_TOLERANCE)
     heat_cool_hot_tolerance = config.get(CONF_HEAT_COOL_HOT_TOLERANCE)
     initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
-    away_temp = config.get(CONF_AWAY_TEMP)
     precision = config.get(CONF_PRECISION)
     unit = hass.config.units.temperature_unit
     unique_id = config.get(CONF_UNIQUE_ID)
+
+    # Process preset temperatures
+    presets = config.get(CONF_PRESETS, [{}])[0]
+    preset_temps = {}
+    
+    # Process presets configuration
+    if PRESET_AWAY in presets:
+        preset_temps[PRESET_AWAY] = presets[PRESET_AWAY]
+    if PRESET_ECO in presets:
+        preset_temps[PRESET_ECO] = presets[PRESET_ECO]
+    if PRESET_COMFORT in presets:
+        preset_temps[PRESET_COMFORT] = presets[PRESET_COMFORT]
+    if PRESET_HOME in presets:
+        preset_temps[PRESET_HOME] = presets[PRESET_HOME]
+    if PRESET_SLEEP in presets:
+        preset_temps[PRESET_SLEEP] = presets[PRESET_SLEEP]
+    if PRESET_BOOST in presets:
+        preset_temps[PRESET_BOOST] = presets[PRESET_BOOST]
+
+    # Handle deprecated away_temp configuration
+    if CONF_AWAY_TEMP in config:
+        _LOGGER.warning(
+            "Configuration option '%s' is deprecated and will be removed in a future version. "
+            "Please use 'presets' instead",
+            CONF_AWAY_TEMP
+        )
+        preset_temps[PRESET_AWAY] = config[CONF_AWAY_TEMP]
+
+    away_temp = preset_temps.get(PRESET_AWAY)
+    eco_temp = preset_temps.get(PRESET_ECO)
+    comfort_temp = preset_temps.get(PRESET_COMFORT)
+    home_temp = preset_temps.get(PRESET_HOME)
+    sleep_temp = preset_temps.get(PRESET_SLEEP)
+    boost_temp = preset_temps.get(PRESET_BOOST)
 
     heater_config = config.get(CONF_HEATER)
     cooler_config = config.get(CONF_COOLER)
@@ -392,6 +441,11 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
                 heat_cool_hot_tolerance,
                 initial_hvac_mode,
                 away_temp,
+                eco_temp,
+                comfort_temp,
+                home_temp,
+                sleep_temp,
+                boost_temp,
                 precision,
                 unit,
                 unique_id,
@@ -418,6 +472,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, Thermostat):
             heat_cool_hot_tolerance,
             initial_hvac_mode,
             away_temp,
+            eco_temp,
+            comfort_temp,
+            home_temp,
+            sleep_temp,
+            boost_temp,
             precision,
             unit,
             unique_id,
@@ -445,11 +504,28 @@ class SmartThermostat(ClimateEntity, RestoreEntity, Thermostat):
         self._hvac_action = HVACAction.IDLE
         self._sensor_stale_duration = sensor_stale_duration
         self._remove_stale_tracking = None
+        self._attr_preset_modes = [PRESET_NONE]
         if away_temp:
+            self._attr_preset_modes.append(PRESET_AWAY)
+        if eco_temp:
+            self._attr_preset_modes.append(PRESET_ECO)
+        if comfort_temp:
+            self._attr_preset_modes.append(PRESET_COMFORT)
+        if home_temp:
+            self._attr_preset_modes.append(PRESET_HOME)
+        if sleep_temp:
+            self._attr_preset_modes.append(PRESET_SLEEP)
+        if boost_temp:
+            self._attr_preset_modes.append(PRESET_BOOST)
+
+        if len(self._attr_preset_modes) > 1:
             self._support_flags = SUPPORT_FLAGS | ClimateEntityFeature.PRESET_MODE
-            self._attr_preset_modes = [PRESET_NONE, PRESET_AWAY]
-        else:
-            self._attr_preset_modes = [PRESET_NONE]
+
+        self._eco_temp = eco_temp
+        self._comfort_temp = comfort_temp
+        self._home_temp = home_temp
+        self._sleep_temp = sleep_temp
+        self._boost_temp = boost_temp
         self._away_temp = away_temp
 
         for controller in self._controllers:
@@ -850,14 +926,27 @@ class SmartThermostat(ClimateEntity, RestoreEntity, Thermostat):
             # I don't think we need to call async_write_ha_state if we didn't change the state
             return
         reason = "preset_changed"
-        if preset_mode == PRESET_AWAY:
-            self._attr_preset_mode = PRESET_AWAY
-            self._saved_target_temp = self._target_temp
-            self._target_temp = self._away_temp
-            await self._async_control(force=True, reason=reason)
-        elif preset_mode == PRESET_NONE:
-            self._attr_preset_mode = PRESET_NONE
+        self._attr_preset_mode = preset_mode
+        
+        if preset_mode == PRESET_NONE:
             self._target_temp = self._saved_target_temp
-            await self._async_control(force=True, reason=reason)
+        else:
+            if self._target_temp is not None:
+                self._saved_target_temp = self._target_temp
+            
+            if preset_mode == PRESET_AWAY:
+                self._target_temp = self._away_temp
+            elif preset_mode == PRESET_ECO:
+                self._target_temp = self._eco_temp
+            elif preset_mode == PRESET_COMFORT:
+                self._target_temp = self._comfort_temp
+            elif preset_mode == PRESET_HOME:
+                self._target_temp = self._home_temp
+            elif preset_mode == PRESET_SLEEP:
+                self._target_temp = self._sleep_temp
+            elif preset_mode == PRESET_BOOST:
+                self._target_temp = self._boost_temp
+                
+        await self._async_control(force=True, reason=reason)
 
         self.async_write_ha_state()
