@@ -202,14 +202,14 @@ DATA_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
         vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_PRESETS): [vol.Schema({
+        vol.Optional(CONF_PRESETS): vol.Schema({
             vol.Optional(PRESET_AWAY): vol.Coerce(float),
             vol.Optional(PRESET_ECO): vol.Coerce(float),
             vol.Optional(PRESET_COMFORT): vol.Coerce(float),
             vol.Optional(PRESET_HOME): vol.Coerce(float),
             vol.Optional(PRESET_SLEEP): vol.Coerce(float),
             vol.Optional(PRESET_BOOST): vol.Coerce(float),
-        })],
+        }),
         # Deprecated options
         vol.Optional(CONF_AWAY_TEMP): vol.Coerce(float),
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
@@ -370,7 +370,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     unique_id = config.get(CONF_UNIQUE_ID)
 
     # Process preset temperatures
-    presets = config.get(CONF_PRESETS, [{}])[0]
+    presets = config.get(CONF_PRESETS, {})
     preset_temps = {}
     
     # Process presets configuration

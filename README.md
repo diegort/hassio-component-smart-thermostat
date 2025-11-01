@@ -12,7 +12,7 @@ Thermostat was designed to control different kind of entities (not only switchab
 
 * Support multiply heaters/coolers.
 * Supports `heat_cool` mode.
-* Supports `away` mode.
+* Supports all Home Assistant preset modes
 * Supports invert logic of the heater/cooler.
 * Protection if target sensor does not report values for period of time (`sensor_stale_duration`).
 
@@ -69,12 +69,12 @@ climate:
     precision: 0.1
     # Configure preset mode temperatures using the new format
     presets:
-      away: 17    # Away mode temperature
-      eco: 18     # Eco mode temperature
-      comfort: 22 # Comfort mode temperature
-      home: 21    # Home mode temperature
-      sleep: 19   # Sleep mode temperature
-      boost: 23   # Boost mode temperature
+      - away: 17    # Away mode temperature
+      - eco: 18     # Eco mode temperature
+      - comfort: 22 # Comfort mode temperature
+      - home: 21    # Home mode temperature
+      - sleep: 19   # Sleep mode temperature
+      - boost: 23   # Boost mode temperature
     # Or using the legacy format (away_temp is deprecated, will be removed in future versions)
     away_temp: 17
     heater:
