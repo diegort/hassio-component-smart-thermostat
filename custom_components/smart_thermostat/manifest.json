@@ -1,5 +1,5 @@
 {
-  "domain": "smart_thermostat",
+  "domain": "pid_pwm_smart_thermostat",
   "name": "Smart Thermostat with auto Heat/Cool modes and PID control support",
   "version": "v1.6",
   "documentation": "https://github.com/hacker-cb/hassio-component-smart-thermostat",
