@@ -6,12 +6,7 @@ import voluptuous as vol
 from typing import Any, Dict, Optional
 
 from homeassistant import config_entries
-from homeassistant.const import (
-    CONF_NAME,
-    CONF_TEMPERATURE_UNIT,
-    UnitOfTemperature,
-    CONF_UNIQUE_ID,
-)
+
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.config_validation as cv
@@ -24,6 +19,8 @@ from .const import (
     DEFAULT_INITIAL_HVAC_MODE,
     DEFAULT_MIN_TEMP,
     DEFAULT_MAX_TEMP,
+    CONF_NAME,
+    CONF_UNIQUE_ID,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,6 +49,7 @@ class SmartThermostatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_NAME, default=DEFAULT_NAME): str,
+                    vol.Required(CONF_UNIQUE_ID): str,
                     vol.Required("heater_entity_id"): str,
                     vol.Required("temp_sensor_entity_id"): str,
                     vol.Optional("cooler_entity_id"): str,
@@ -59,9 +57,6 @@ class SmartThermostatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Optional("tolerance", default=DEFAULT_TOLERANCE): vol.Coerce(float),
                     vol.Optional("min_temp", default=DEFAULT_MIN_TEMP): vol.Coerce(float),
                     vol.Optional("max_temp", default=DEFAULT_MAX_TEMP): vol.Coerce(float),
-                    vol.Optional(CONF_TEMPERATURE_UNIT, default=UnitOfTemperature.CELSIUS): vol.In(
-                        [UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT]
-                    ),
                 }
             ),
             errors=errors,
