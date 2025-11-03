@@ -869,7 +869,7 @@ class NumberPidController(AbstractPidController):
     def working(self):
         # We don't have any information is real heater/cooler working now
         # So we just return switch state
-        # TODO: Add optional binary sensor which will indicate real operating status of the target
+        # TODO: Add optional binary sensor which will indicate real operating status of the target. Consider managing status IDLE when the thermostat is on and the switch is off.
         return self._is_on()
 
     def _is_on(self):
@@ -940,6 +940,19 @@ class NumberPidController(AbstractPidController):
         )
 
     async def _async_control(self, cur_temp, target_temp, time=None, force=False, reason=None):
+        # Get current output (temperature)
+        current_output = self._get_current_output()
+        min_temp, _ = self._get_output_limits()
+        
+        # Check if we should turn off the switch
+        if current_output is not None and min_temp is not None:
+            if cur_temp > target_temp and abs(current_output - min_temp) < 0.1:
+                # Temperature above target and water temp at minimum
+                if self._is_on():
+                    await self._async_turn_off(reason="temperature_reached")
+                return
+
+        # Normal operation
         if not self._is_on() or reason == REASON_KEEP_ALIVE:
             await self._async_turn_on(reason=reason)
         await super()._async_control(cur_temp, target_temp, time, force, reason)
